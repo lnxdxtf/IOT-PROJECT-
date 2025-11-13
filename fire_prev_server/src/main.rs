@@ -25,19 +25,22 @@ fn device_sender(ws: ws::WebSocket) -> ws::Stream!['static] {
     });
     
 
-    let client = redis::Client::open("redis://default:mKdtwFN2awlAErgK5uU1078sBYpF4h9A@redis-12222.c240.us-east-1-3.ec2.redns.redis-cloud.com:12222").unwrap();
+    let client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
+
     let mut con = client.get_connection().unwrap();
 
     ws::Stream! { ws =>
         for await message in ws {
             let data = message?;
-            println!("Received: {}", data.to_string());
-            // parse into an owned DeviceData (id is owned String)
             let data_deserialized: DeviceData = rocket::serde::json::from_str(&data.to_string()).unwrap();
 
             // serialize the struct to JSON and store JSON string in Redis under the id key
             let json = rocket::serde::json::serde_json::to_string(&data_deserialized).unwrap();
-            let _: () = con.set(data_deserialized.id.clone(), json).unwrap();
+            
+
+            let _: () = con.sadd("devices_id", &data_deserialized.id).unwrap();
+            let _: () = con.sadd(data_deserialized.id.clone(), json).unwrap();
+            let _: () = con.publish("device_data_channel", &data.to_string()).unwrap();
 
             yield ws::Message::Text("Received: ".to_string() + &data.to_string());
         }
@@ -52,5 +55,7 @@ fn device_sender(ws: ws::WebSocket) -> ws::Stream!['static] {
 
 #[launch]
 fn rocket() -> _ {
+
     rocket::build().mount("/", routes![device_sender])
+
 }
