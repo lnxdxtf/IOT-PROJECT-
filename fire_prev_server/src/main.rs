@@ -2,6 +2,7 @@
 
 use rocket::serde::{Serialize, Deserialize};
 use redis::Commands;
+use ws;
 
 
 
@@ -25,9 +26,11 @@ fn device_sender(ws: ws::WebSocket) -> ws::Stream!['static] {
     });
     
 
-    let client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
+    // Read Redis connection URL from environment, fallback to localhost
+    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
+    let client = redis::Client::open(redis_url.as_str()).expect("Failed to create Redis client");
 
-    let mut con = client.get_connection().unwrap();
+    let mut con = client.get_connection().expect("Failed to connect to Redis");
 
     ws::Stream! { ws =>
         for await message in ws {
