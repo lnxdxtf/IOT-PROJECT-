@@ -5,11 +5,6 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
 
   fire_prev_server:
     build:
@@ -19,9 +14,16 @@ services:
       - "8000:8000"
     environment:
       - REDIS_URL=redis://redis:6379
-      - ROCKET_ADDRESS=0.0.0.0
-      - ROCKET_PORT=8000
     depends_on:
-      redis:
-        condition: service_healthy
+      - redis
+    restart: unless-stopped
+
+  front_end:
+    build:
+      context: ./FRONT -END
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis
     restart: unless-stopped

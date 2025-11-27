@@ -76,5 +76,5 @@ void loop() {
 
   WSclient.send(JSON.stringify(data));
 
-  delay(2000);
+  delay(1000);
 }

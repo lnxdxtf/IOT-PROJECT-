@@ -3,6 +3,7 @@
 use rocket::serde::{Serialize, Deserialize};
 use redis::Commands;
 use ws;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 
 
@@ -35,15 +36,17 @@ fn device_sender(ws: ws::WebSocket) -> ws::Stream!['static] {
     ws::Stream! { ws =>
         for await message in ws {
             let data = message?;
-            let data_deserialized: DeviceData = rocket::serde::json::from_str(&data.to_string()).unwrap();
+            let mut data_deserialized: DeviceData = rocket::serde::json::from_str(&data.to_string()).unwrap();
+            let new_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+            println!("New timestamp: {}", new_timestamp);
+            data_deserialized.timestamp = new_timestamp;
 
             // serialize the struct to JSON and store JSON string in Redis under the id key
             let json = rocket::serde::json::serde_json::to_string(&data_deserialized).unwrap();
-            
 
             let _: () = con.sadd("devices_id", &data_deserialized.id).unwrap();
-            let _: () = con.sadd(data_deserialized.id.clone(), json).unwrap();
-            let _: () = con.publish("device_data_channel", &data.to_string()).unwrap();
+            let _: () = con.sadd(data_deserialized.id.clone(), &json).unwrap();
+            let _: () = con.publish("device_data_channel", &json.to_string()).unwrap();
 
             yield ws::Message::Text("Received: ".to_string() + &data.to_string());
         }
